@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MESON-SYNTH</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2a 100%);
+            color: #00ffcc;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            border-bottom: 2px solid #ff0044;
+        }
+
+        h1 {
+            font-size: 1.5em;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px #00ffcc;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .meson-nonet {
+            position: relative;
+            width: 300px;
+            height: 260px;
+            margin: 20px auto;
+        }
+
+        .meson-node {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #00ffcc 0%, #00ccaa 100%);
+            border: 2px solid #00ffcc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+        }
+
+        .meson-node:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 40px rgba(0, 255, 204, 0.8);
+        }
+
+        .meson-node.active {
+            background: radial-gradient(circle, #ff0044 0%, #cc0033 100%);
+            border-color: #ff0044;
+            box-shadow: 0 0 40px rgba(255, 0, 68, 0.8);
+            animation: pulse 0.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1.1); }
+            to { transform: scale(1.3); }
+        }
+
+        .connection {
+            position: absolute;
+            background: #ff0044;
+            height: 2px;
+            transform-origin: left center;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .control-group {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ffcc;
+        }
+
+        .control-group h3 {
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .slider-container {
+            margin: 10px 0;
+        }
+
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.8em;
+            color: #00ccaa;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: #003333;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 3px;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00ffcc;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #00ffcc;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 100px;
+            padding: 10px;
+            background: linear-gradient(135deg, #00ffcc 0%, #00ccaa 100%);
+            border: none;
+            border-radius: 5px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 204, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.active {
+            background: linear-gradient(135deg, #ff0044 0%, #cc0033 100%);
+            color: #fff;
+        }
+
+        .oscilloscope {
+            width: 100%;
+            height: 100px;
+            background: #000;
+            border: 1px solid #00ffcc;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .info-display {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.8em;
+            color: #00ffcc;
+            border: 1px solid #003333;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .meson-nonet {
+                transform: scale(0.9);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>SNOSEM PARTICLE SYNTH</h1>
+    </header>
+
+    <div class="main-container">
+        <div class="meson-nonet" id="mesonNonet">
+            <!-- Connections will be drawn here -->
+            <div class="connection" style="width: 100px; transform: rotate(0deg); left: 75px; top: 24px;"></div>
+            <div class="connection" style="width: 100px; transform: rotate(60deg); left: 175px; top: 74px;"></div>
+            <div class="connection" style="width: 100px; transform: rotate(120deg); left: 175px; top: 174px;"></div>
+            <div class="connection" style="width: 100px; transform: rotate(180deg); left: 75px; top: 224px;"></div>
+            <div class="connection" style="width: 100px; transform: rotate(240deg); left: 25px; top: 174px;"></div>
+            <div class="connection" style="width: 100px; transform: rotate(300deg); left: 25px; top: 74px;"></div>
+            
+            <!-- Meson nodes -->
+            <div class="meson-node" data-meson="K0" style="left: 50px; top: 0px;">K⁰</div>
+            <div class="meson-node" data-meson="K+" style="left: 200px; top: 0px;">K⁺</div>
+            <div class="meson-node" data-meson="pi+" style="left: 200px; top: 100px;">π⁺</div>
+            <div class="meson-node" data-meson="pi0" style="left: 125px; top: 100px;">π⁰</div>
+            <div class="meson-node" data-meson="pi-" style="left: 50px; top: 100px;">π⁻</div>
+            <div class="meson-node" data-meson="eta" style="left: 88px; top: 100px;">η</div>
+            <div class="meson-node" data-meson="eta'" style="left: 162px; top: 100px;">η'</div>
+            <div class="meson-node" data-meson="K-" style="left: 50px; top: 200px;">K⁻</div>
+            <div class="meson-node" data-meson="K0bar" style="left: 200px; top: 200px;">K̄⁰</div>
+        </div>
+
+        <div class="info-display" id="infoDisplay">
+            Status: Ready | Active Meson: None | Oscillation: 0.00 Hz
+        </div>
+
+        <canvas class="oscilloscope" id="oscilloscope"></canvas>
+
+        <div class="controls">
+            <div class="control-group">
+                <h3>Quantum Oscillation</h3>
+                <div class="slider-container">
+                    <label>Oscillation Rate: <span id="oscRateValue">17.77</span> Hz</label>
+                    <input type="range" class="slider" id="oscRate" min="0.1" max="100" value="17.77" step="0.01">
+                </div>
+                <div class="slider-container">
+                    <label>Mixing Angle: <span id="mixingValue">0.5</span></label>
+                    <input type="range" class="slider" id="mixing" min="0" max="1" value="0.5" step="0.01">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Decay Dynamics</h3>
+                <div class="slider-container">
+                    <label>Lifetime: <span id="lifetimeValue">0.5</span> s</label>
+                    <input type="range" class="slider" id="lifetime" min="0.01" max="2" value="0.5" step="0.01">
+                </div>
+                <div class="slider-container">
+                    <label>Branching Ratio: <span id="branchingValue">0.3</span></label>
+                    <input type="range" class="slider" id="branching" min="0" max="1" value="0.3" step="0.01">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Strong Force FM</h3>
+                <div class="slider-container">
+                    <label>Coupling: <span id="couplingValue">0.7</span></label>
+                    <input type="range" class="slider" id="coupling" min="0" max="1" value="0.7" step="0.01">
+                </div>
+                <div class="slider-container">
+                    <label>Confinement: <span id="confinementValue">0.5</span></label>
+                    <input type="range" class="slider" id="confinement" min="0" max="1" value="0.5" step="0.01">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Material Resonance</h3>
+                <div class="button-group">
+                    <button class="material-btn" data-material="silicon">Silicon</button>
+                    <button class="material-btn" data-material="argon">Liquid Argon</button>
+                    <button class="material-btn" data-material="lead">Lead Glass</button>
+                    <button class="material-btn" data-material="plastic">Scintillator</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="startBtn">START COLLISION</button>
+            <button id="stopBtn">STOP</button>
+            <button id="randomBtn">QUANTUM CHAOS</button>
+        </div>
+    </div>
+
+    <script>
+        // Cross-platform audio context
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let isPlaying = false;
+        let activeMeson = null;
+        let oscillators = [];
+        let gainNodes = [];
+        let analyser = null;
+        let animationId = null;
+
+        // Meson properties mapping
+        const mesonProperties = {
+            'K0': { freq: 497.6, mass: 497.6, charge: 0, strangeness: 1 },
+            'K+': { freq: 493.7, mass: 493.7, charge: 1, strangeness: 1 },
+            'pi+': { freq: 139.6, mass: 139.6, charge: 1, strangeness: 0 },
+            'pi0': { freq: 135.0, mass: 135.0, charge: 0, strangeness: 0 },
+            'pi-': { freq: 139.6, mass: 139.6, charge: -1, strangeness: 0 },
+            'eta': { freq: 547.9, mass: 547.9, charge: 0, strangeness: 0 },
+            'eta\'': { freq: 957.8, mass: 957.8, charge: 0, strangeness: 0 },
+            'K-': { freq: 493.7, mass: 493.7, charge: -1, strangeness: -1 },
+            'K0bar': { freq: 497.6, mass: 497.6, charge: 0, strangeness: -1 }
+        };
+
+        // Initialize audio context on user interaction
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 2048;
+                analyser.connect(audioCtx.destination);
+            }
+        }
+
+        // Quantum oscillator synthesis
+        class QuantumOscillator {
+            constructor(meson) {
+                this.meson = meson;
+                this.props = mesonProperties[meson];
+                this.oscillators = [];
+                this.gains = [];
+                this.panner = null;
+                this.envelope = null;
+            }
+
+            start() {
+                initAudio();
+                
+                // Particle oscillator
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.frequency.value = this.props.freq;
+                osc1.type = 'sine';
+                gain1.gain.value = 0;
+                
+                // Antiparticle oscillator (phase inverted)
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.frequency.value = this.props.freq * 1.01; // Slight detuning
+                osc2.type = 'sine';
+                gain2.gain.value = 0;
+                
+                // FM modulator for strong force
+                const modulator = audioCtx.createOscillator();
+                const modGain = audioCtx.createGain();
+                modulator.frequency.value = parseFloat(document.getElementById('oscRate').value);
+                modGain.gain.value = this.props.freq * parseFloat(document.getElementById('coupling').value) * 0.5;
+                
+                // Panning for particle-antiparticle oscillation
+                this.panner = audioCtx.createStereoPanner();
+                
+                // Master envelope
+                this.envelope = audioCtx.createGain();
+                this.envelope.gain.value = 0;
+                
+                // Connect FM modulation
+                modulator.connect(modGain);
+                modGain.connect(osc1.frequency);
+                modGain.connect(osc2.frequency);
+                
+                // Connect main signal chain
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                gain1.connect(this.envelope);
+                gain2.connect(this.envelope);
+                this.envelope.connect(this.panner);
+                this.panner.connect(analyser);
+                
+                // Start oscillators
+                osc1.start();
+                osc2.start();
+                modulator.start();
+                
+                // Fade in
+                const now = audioCtx.currentTime;
+                gain1.gain.setTargetAtTime(0.3, now, 0.1);
+                gain2.gain.setTargetAtTime(0.3, now, 0.1);
+                this.envelope.gain.setTargetAtTime(0.5, now, 0.2);
+                
+                this.oscillators = [osc1, osc2, modulator];
+                this.gains = [gain1, gain2, modGain];
+                
+                // Start oscillation animation
+                this.animateOscillation();
+            }
+
+            animateOscillation() {
+                const rate = parseFloat(document.getElementById('oscRate').value);
+                const mixing = parseFloat(document.getElementById('mixing').value);
+                
+                const oscillate = () => {
+                    if (!isPlaying) return;
+                    
+                    const t = audioCtx.currentTime;
+                    const phase = Math.sin(t * rate * 0.1);
+                    
+                    // Oscillate between particle and antiparticle
+                    this.gains[0].gain.value = 0.3 * (1 + phase * mixing) / 2;
+                    this.gains[1].gain.value = 0.3 * (1 - phase * mixing) / 2;
+                    
+                    // Pan oscillation
+                    this.panner.pan.value = phase * 0.5;
+                    
+                    requestAnimationFrame(oscillate);
+                };
+                oscillate();
+            }
+
+            stop() {
+                const now = audioCtx.currentTime;
+                const lifetime = parseFloat(document.getElementById('lifetime').value);
+                
+                // Decay envelope
+                this.envelope.gain.setTargetAtTime(0, now, lifetime);
+                
+                setTimeout(() => {
+                    this.oscillators.forEach(osc => osc.stop());
+                    this.oscillators = [];
+                    this.gains = [];
+                }, lifetime * 5000);
+            }
+
+            updateParameters() {
+                if (this.oscillators.length > 0) {
+                    const coupling = parseFloat(document.getElementById('coupling').value);
+                    this.gains[2].gain.value = this.props.freq * coupling * 0.5;
+                    
+                    const rate = parseFloat(document.getElementById('oscRate').value);
+                    this.oscillators[2].frequency.value = rate;
+                }
+            }
+        }
+
+        let currentOscillator = null;
+
+        // Meson node interactions
+        document.querySelectorAll('.meson-node').forEach(node => {
+            node.addEventListener('click', function() {
+                if (activeMeson === this) {
+                    stopSynth();
+                    return;
+                }
+                
+                // Update active state
+                document.querySelectorAll('.meson-node').forEach(n => n.classList.remove('active'));
+                this.classList.add('active');
+                activeMeson = this;
+                
+                // Start new oscillator
+                stopSynth();
+                const mesonType = this.dataset.meson;
+                currentOscillator = new QuantumOscillator(mesonType);
+                currentOscillator.start();
+                isPlaying = true;
+                
+                updateInfo(mesonType);
+                startVisualization();
+            });
+        });
+
+        // Control sliders
+        document.querySelectorAll('.slider').forEach(slider => {
+            slider.addEventListener('input', function() {
+                const valueSpan = document.getElementById(this.id + 'Value');
+                valueSpan.textContent = this.value;
+                
+                if (currentOscillator) {
+                    currentOscillator.updateParameters();
+                }
+            });
+        });
+
+        // Material buttons
+        document.querySelectorAll('.material-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                applyMaterialResonance(this.dataset.material);
+            });
+        });
+
+        // Main control buttons
+        document.getElementById('startBtn').addEventListener('click', () => {
+            if (!isPlaying) {
+                // Auto-select first meson if none selected
+                if (!activeMeson) {
+                    document.querySelector('.meson-node').click();
+                }
+            }
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', stopSynth);
+
+        document.getElementById('randomBtn').addEventListener('click', () => {
+            // Quantum chaos - random parameters
+            document.getElementById('oscRate').value = Math.random() * 100;
+            document.getElementById('mixing').value = Math.random();
+            document.getElementById('lifetime').value = Math.random() * 2;
+            document.getElementById('coupling').value = Math.random();
+            document.getElementById('confinement').value = Math.random();
+            
+            // Update displays
+            document.querySelectorAll('.slider').forEach(slider => {
+                const valueSpan = document.getElementById(slider.id + 'Value');
+                valueSpan.textContent = slider.value;
+            });
+            
+            // Random meson selection
+            const nodes = document.querySelectorAll('.meson-node');
+            const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
+            randomNode.click();
+        });
+
+        function stopSynth() {
+            isPlaying = false;
+            if (currentOscillator) {
+                currentOscillator.stop();
+                currentOscillator = null;
+            }
+            document.querySelectorAll('.meson-node').forEach(n => n.classList.remove('active'));
+            activeMeson = null;
+            updateInfo(null);
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+
+        function applyMaterialResonance(material) {
+            if (!audioCtx || !currentOscillator) return;
+            
+            // Material-specific filter parameters
+            const materials = {
+                silicon: { freq: 2000, Q: 10, gain: 5 },
+                argon: { freq: 800, Q: 2, gain: 3 },
+                lead: { freq: 200, Q: 0.5, gain: 8 },
+                plastic: { freq: 4000, Q: 15, gain: 2 }
+            };
+            
+            const params = materials[material];
+            
+            // Create and apply filter
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'peaking';
+            filter.frequency.value = params.freq;
+            filter.Q.value = params.Q;
+            filter.gain.value = params.gain;
+            
+            // Reconnect with filter
+            currentOscillator.panner.disconnect();
+            currentOscillator.panner.connect(filter);
+            filter.connect(analyser);
+        }
+
+        function updateInfo(mesonType) {
+            const display = document.getElementById('infoDisplay');
+            if (mesonType && mesonProperties[mesonType]) {
+                const props = mesonProperties[mesonType];
+                const rate = document.getElementById('oscRate').value;
+                display.textContent = `Status: Active | Meson: ${mesonType} | Mass: ${props.mass} MeV | Charge: ${props.charge} | Oscillation: ${rate} Hz`;
+            } else {
+                display.textContent = 'Status: Ready | Active Meson: None | Oscillation: 0.00 Hz';
+            }
+        }
+
+        // Oscilloscope visualization
+        function startVisualization() {
+            const canvas = document.getElementById('oscilloscope');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            const bufferLength = analyser.fftSize;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            function draw() {
+                if (!isPlaying) {
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    return;
+                }
+                
+                animationId = requestAnimationFrame(draw);
+                
+                analyser.getByteTimeDomainData(dataArray);
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#00ffcc';
+                ctx.beginPath();
+                
+                const sliceWidth = canvas.width / bufferLength;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                ctx.lineTo(canvas.width, canvas.height / 2);
+                ctx.stroke();
+            }
+            
+            draw();
+        }
+
+        // Initialize on first user interaction for mobile
+        document.addEventListener('click', initAudio, { once: true });
+        document.addEventListener('touchstart', initAudio, { once: true });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('oscilloscope');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        });
+    </script>
+</body>
+</html>

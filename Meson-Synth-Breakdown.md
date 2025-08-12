@@ -1,3 +1,5 @@
+AIStudio Gemini 2.5 Pro - August 12th *02025
+
 Part 1: Detailed Breakdown of the "SNOSEM PARTICLE SYNTH"
 
 This synthesizer is not recording a meson; it's creating an interpretive audio model of one. It maps the abstract physical properties of mesons to audible sound parameters.

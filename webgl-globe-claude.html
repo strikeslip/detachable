@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Globe with Tectonic Plates</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100vh;
+            cursor: grab;
+        }
+
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .spinner {
+            width: 64px;
+            height: 64px;
+            border: 2px solid #333;
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Control Panels */
+        .controls-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 8px;
+            z-index: 100;
+            min-width: 200px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .controls-panel h3 {
+            margin-bottom: 12px;
+            font-size: 18px;
+            color: #00ffff;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .control-group input[type="checkbox"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        /* Info Panel */
+        .info-panel {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 8px;
+            z-index: 100;
+            max-width: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-panel h4 {
+            margin-bottom: 8px;
+            color: #00ffff;
+        }
+
+        .info-panel ul {
+            list-style: none;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .info-panel li {
+            margin-bottom: 4px;
+        }
+
+        .data-source {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 8px;
+            color: #ffff00;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 8px;
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stats-panel h4 {
+            margin-bottom: 8px;
+            color: #00ffff;
+        }
+
+        #stats p {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls-panel,
+            .info-panel,
+            .stats-panel {
+                font-size: 12px;
+                padding: 12px;
+            }
+            
+            .controls-panel {
+                min-width: 180px;
+            }
+            
+            .info-panel {
+                max-width: 250px;
+            }
+        }
+
+        /* Special effects */
+        .controls-panel, .info-panel, .stats-panel {
+            box-shadow: 0 4px 20px rgba(0, 255, 255, 0.1);
+        }
+
+        .loading-content p {
+            font-size: 20px;
+            color: #00ffff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading screen -->
+    <div id="loading" class="loading-screen">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>Loading Tectonic Plate Data...</p>
+            <p style="font-size: 14px; margin-top: 10px; opacity: 0.7;">Fetching real geological data from GitHub...</p>
+        </div>
+    </div>
+
+    <!-- Controls panel -->
+    <div id="controls" class="controls-panel">
+        <h3>🌍 Earth - Tectonic Plates</h3>
+        
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="showTectonic" checked> 
+                Show Tectonic Boundaries
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="wireframe"> 
+                Wireframe Mode
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="autoRotate" checked> 
+                Auto Rotate
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>Rotation Speed: <span id="speedDisplay">0.005</span></label>
+            <input type="range" id="rotationSpeed" min="0" max="0.02" step="0.001" value="0.005">
+        </div>
+
+        <div class="control-group">
+            <label>Zoom: <span id="zoomDisplay">5.0x</span></label>
+            <input type="range" id="zoom" min="3" max="15" step="0.1" value="5">
+        </div>
+    </div>
+
+    <!-- Info panel -->
+    <div class="info-panel">
+        <h4>🎮 Controls:</h4>
+        <ul>
+            <li>🖱️ Click and drag to rotate manually</li>
+            <li>🔄 Scroll to zoom in/out</li>
+            <li>⚙️ Toggle auto-rotation and wireframe mode</li>
+            <li>🔴 Colored lines show tectonic plate boundaries</li>
+            <li>🌟 Real scientific data from PB2002</li>
+        </ul>
+        <p class="data-source">📊 Data source: PB2002 (Peter Bird, 2003)</p>
+    </div>
+
+    <!-- Stats panel -->
+    <div class="stats-panel">
+        <h4>📈 Statistics:</h4>
+        <div id="stats">
+            <p>🔗 Tectonic Boundaries: <span id="boundaryCount">Loading...</span></p>
+            <p>🔍 Zoom Level: <span id="zoomLevel">5.0x</span></p>
+            <p>🔄 Auto Rotation: <span id="rotationStatus">ON</span></p>
+            <p>🌐 Globe Status: <span id="globeStatus">Initializing...</span></p>
+        </div>
+    </div>
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <script>
+        // Global variables
+        let scene, camera, renderer, globe, tectonicLines;
+        let tectonicData = null;
+        let isDragging = false;
+        let previousMouse = { x: 0, y: 0 };
+        let rotation = { x: 0, y: 0 };
+        let autoRotate = true;
+        let rotationSpeed = 0.005;
+        let zoom = 5;
+        let showTectonic = true;
+        let wireframe = false;
+
+        // Initialize the application
+        init();
+
+        async function init() {
+            console.log('🌍 Initializing 3D Globe...');
+            
+            // Show loading screen
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('globeStatus').textContent = 'Setting up 3D scene...';
+            
+            // Setup Three.js scene
+            setupScene();
+            
+            document.getElementById('globeStatus').textContent = 'Loading tectonic data...';
+            
+            // Load tectonic data
+            await loadTectonicData();
+            
+            document.getElementById('globeStatus').textContent = 'Ready!';
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                console.log('🚀 Globe ready! Enjoy exploring Earth\'s tectonic plates!');
+            }, 1000);
+        }
+
+        function setupScene() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000011);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = zoom;
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Create Earth globe
+            createGlobe();
+            
+            // Setup lighting
+            setupLighting();
+            
+            // Create star field
+            createStarField();
+        }
+
+        function createGlobe() {
+            const globeGeometry = new THREE.SphereGeometry(2, 64, 64);
+            const earthTexture = createEarthTexture();
+            
+            const globeMaterial = new THREE.MeshPhongMaterial({
+                map: earthTexture,
+                wireframe: wireframe,
+                shininess: 30
+            });
+
+            globe = new THREE.Mesh(globeGeometry, globeMaterial);
+            globe.castShadow = true;
+            globe.receiveShadow = true;
+            scene.add(globe);
+        }
+
+        function createEarthTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048;
+            canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+
+            // Create gradient for ocean
+            const oceanGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            oceanGradient.addColorStop(0, '#1e3a8a');
+            oceanGradient.addColorStop(0.3, '#1d4ed8');
+            oceanGradient.addColorStop(0.7, '#2563eb');
+            oceanGradient.addColorStop(1, '#1e40af');
+
+            ctx.fillStyle = oceanGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Add continents
+            ctx.fillStyle = '#166534';
+            
+            // North America
+            ctx.beginPath();
+            ctx.ellipse(300, 300, 200, 180, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // South America
+            ctx.beginPath();
+            ctx.ellipse(450, 600, 100, 200, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Europe/Asia
+            ctx.beginPath();
+            ctx.ellipse(1100, 250, 400, 150, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Africa
+            ctx.beginPath();
+            ctx.ellipse(1000, 450, 150, 200, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Australia
+            ctx.beginPath();
+            ctx.ellipse(1600, 650, 120, 80, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Antarctica
+            ctx.beginPath();
+            ctx.ellipse(1024, 950, 600, 60, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Add some texture variation
+            ctx.fillStyle = '#15803d';
+            for (let i = 0; i < 50; i++) {
+                ctx.beginPath();
+                ctx.arc(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height,
+                    Math.random() * 15 + 3,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.fill();
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+
+            // Main directional light (Sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 5, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Secondary light for better illumination
+            const secondaryLight = new THREE.DirectionalLight(0x404040, 0.3);
+            secondaryLight.position.set(-5, -5, -5);
+            scene.add(secondaryLight);
+        }
+
+        function createStarField() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 10000;
+            const positions = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 2000;
+                positions[i + 1] = (Math.random() - 0.5) * 2000;
+                positions[i + 2] = (Math.random() - 0.5) * 2000;
+            }
+
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 2,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+
+        async function loadTectonicData() {
+            try {
+                console.log('📡 Fetching tectonic plate data...');
+                const response = await fetch('https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                tectonicData = await response.json();
+                console.log(`✅ Loaded ${tectonicData.features.length} tectonic boundaries`);
+                
+                // Update stats
+                document.getElementById('boundaryCount').textContent = tectonicData.features.length;
+                
+                createTectonicLines();
+            } catch (error) {
+                console.error('❌ Error loading tectonic data:', error);
+                document.getElementById('boundaryCount').textContent = 'Failed to load';
+                
+                // Show fallback message
+                alert('⚠️ Could not load tectonic plate data. Please check your internet connection and try refreshing the page.');
+            }
+        }
+
+        function createTectonicLines() {
+            if (!tectonicData || !showTectonic) {
+                if (tectonicLines) {
+                    scene.remove(tectonicLines);
+                    tectonicLines = null;
+                }
+                return;
+            }
+
+            // Remove existing lines
+            if (tectonicLines) {
+                scene.remove(tectonicLines);
+            }
+
+            const tectonicGroup = new THREE.Group();
+            const colors = [
+                0xff4444, // Red
+                0x44ff44, // Green  
+                0x4444ff, // Blue
+                0xffff44, // Yellow
+                0xff44ff, // Magenta
+                0x44ffff, // Cyan
+                0xff8844, // Orange
+                0x8844ff  // Purple
+            ];
+
+            let lineCount = 0;
+            tectonicData.features.forEach((feature, index) => {
+                if (feature.geometry.type === 'LineString') {
+                    const coordinates = feature.geometry.coordinates;
+                    const points = [];
+
+                    coordinates.forEach(coord => {
+                        const [lon, lat] = coord;
+                        const point = latLonToVector3(lat, lon, 2.02);
+                        points.push(point);
+                    });
+
+                    if (points.length > 1) {
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        const material = new THREE.LineBasicMaterial({
+                            color: colors[index % colors.length],
+                            linewidth: 2,
+                            transparent: true,
+                            opacity: 0.9
+                        });
+
+                        const line = new THREE.Line(geometry, material);
+                        tectonicGroup.add(line);
+                        lineCount++;
+                    }
+                }
+            });
+
+            scene.add(tectonicGroup);
+            tectonicLines = tectonicGroup;
+            console.log(`🔗 Created ${lineCount} tectonic boundary lines`);
+        }
+
+        function latLonToVector3(lat, lon, radius = 2) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            
+            return new THREE.Vector3(
+                -radius * Math.sin(phi) * Math.cos(theta),
+                radius * Math.cos(phi),
+                radius * Math.sin(phi) * Math.sin(theta)
+            );
+        }
+
+        function setupEventListeners() {
+            // Control panel events
+            document.getElementById('showTectonic').addEventListener('change', (e) => {
+                showTectonic = e.target.checked;
+                createTectonicLines();
+                console.log(`🔗 Tectonic boundaries: ${showTectonic ? 'ON' : 'OFF'}`);
+            });
+
+            document.getElementById('wireframe').addEventListener('change', (e) => {
+                wireframe = e.target.checked;
+                if (globe) {
+                    globe.material.wireframe = wireframe;
+                }
+                console.log(`🔲 Wireframe mode: ${wireframe ? 'ON' : 'OFF'}`);
+            });
+
+            document.getElementById('autoRotate').addEventListener('change', (e) => {
+                autoRotate = e.target.checked;
+                document.getElementById('rotationStatus').textContent = autoRotate ? 'ON' : 'OFF';
+                console.log(`🔄 Auto rotation: ${autoRotate ? 'ON' : 'OFF'}`);
+            });
+
+            document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+                rotationSpeed = parseFloat(e.target.value);
+                document.getElementById('speedDisplay').textContent = rotationSpeed.toFixed(3);
+            });
+
+            document.getElementById('zoom').addEventListener('input', (e) => {
+                zoom = parseFloat(e.target.value);
+                camera.position.z = zoom;
+                document.getElementById('zoomLevel').textContent = zoom.toFixed(1) + 'x';
+                document.getElementById('zoomDisplay').textContent = zoom.toFixed(1) + 'x';
+            });
+
+            // Mouse controls
+            const canvas = renderer.domElement;
+            
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMouse = { x: e.clientX, y: e.clientY };
+                canvas.style.cursor = 'grabbing';
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const deltaMove = {
+                    x: e.clientX - previousMouse.x,
+                    y: e.clientY - previousMouse.y
+                };
+
+                rotation.x += deltaMove.y * 0.01;
+                rotation.y += deltaMove.x * 0.01;
+
+                previousMouse = { x: e.clientX, y: e.clientY };
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+                canvas.style.cursor = 'grab';
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                isDragging = false;
+                canvas.style.cursor = 'grab';
+            });
+
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const oldZoom = zoom;
+                zoom = Math.max(3, Math.min(15, zoom + e.deltaY * 0.01));
+                
+                if (zoom !== oldZoom) {
+                    camera.position.z = zoom;
+                    document.getElementById('zoom').value = zoom;
+                    document.getElementById('zoomLevel').textContent = zoom.toFixed(1) + 'x';
+                    document.getElementById('zoomDisplay').textContent = zoom.toFixed(1) + 'x';
+                }
+            });
+
+            // Window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                switch(e.key) {
+                    case ' ':
+                        e.preventDefault();
+                        document.getElementById('autoRotate').click();
+                        break;
+                    case 't':
+                    case 'T':
+                        document.getElementById('showTectonic').click();
+                        break;
+                    case 'w':
+                    case 'W':
+                        document.getElementById('wireframe').click();
+                        break;
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (globe) {
+                // Auto rotation
+                if (autoRotate) {
+                    globe.rotation.y += rotationSpeed;
+                }
+
+                // Manual rotation
+                globe.rotation.x = rotation.x;
+                if (!autoRotate) {
+                    globe.rotation.y = rotation.y;
+                }
+
+                // Update tectonic lines rotation
+                if (tectonicLines) {
+                    tectonicLines.rotation.copy(globe.rotation);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Welcome message
+        console.log(`
+🌍 Welcome to the 3D Tectonic Globe!
+🎮 Keyboard shortcuts:
+   - SPACEBAR: Toggle auto-rotation
+   - T: Toggle tectonic boundaries
+   - W: Toggle wireframe mode
+🚀 Enjoy exploring Earth's geology!
+        `);
+    </script>
+</body>
+</html>
